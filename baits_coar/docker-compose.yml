@@ -1,0 +1,25 @@
+version: "3.9"
+
+services:
+
+  ldn_inbox:
+    build: ./ldn_inbox
+    container_name: ldn_inbox
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./data:/app/data
+
+  dashboard:
+    build: ./dashboard
+    container_name: dashboard
+    ports:
+      - "8501:8501"
+    environment:
+      # Since both services run in the same docker-compose network,
+      # the dashboard reaches the inbox service by its service name.
+      - LDN_BASE=http://ldn_inbox:8000
+    volumes:
+      - ./data:/app/data
+    depends_on:
+      - ldn_inbox

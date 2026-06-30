@@ -1,0 +1,207 @@
+COAR Bots-egov-agri Prototype
+======================================================================
+
+OVERVIEW
+
+COAR Bots-egov-agri is a research prototype demonstrating how COAR Notify — an open
+protocol built on W3C Linked Data Notifications (LDN) and Activity
+Streams 2.0 (AS2) — can serve as the notification backbone for a
+national livestock traceability system during disease outbreaks and
+other agricultural crises.
+
+The system models five farmers distributed across Botswana's
+administrative districts, each holding five animals, yielding a
+monitored population of 25 animals. A single veterinary authority
+(VET) receives, ranks, and acts on movement permit requests ordered
+by KLD relevance score.
+
+
+REQUIREMENTS
+
+- Docker Desktop (Windows/Mac/Linux)
+- Docker Compose v2 or later
+- Python 3.10+ (for local development only; not required for Docker)
+- Port 8000 and 8501 must be free on your machine
+
+
+QUICK START
+
+1. Open a terminal and navigate to the baits_coar folder:
+
+      cd baits_coar
+
+2. Build and start all services:
+
+      docker compose up --build
+
+3. Open the dashboard in your browser:
+
+      http://localhost:8501
+
+4. Open the API documentation (Swagger UI):
+
+      http://localhost:8000/docs
+
+
+SERVICES
+
+The system runs two Docker containers managed by Docker Compose:
+
+   LDN Inbox (FastAPI)     http://localhost:8000
+   Dashboard (Streamlit)   http://localhost:8501
+
+Both services share a single SQLite database file located at:
+
+      baits_coar/data/baits_system.db
+
+
+DASHBOARD VIEWS
+
+The Streamlit dashboard provides five views via the left-hand sidebar:
+
+   Register Animal     Submit a new animal registration. Generates an
+                       Announce + IngestAction COAR Notify notification.
+
+   Farmer View         Browse animals, manage inbox (All / Pending /
+                       Acknowledged), and submit movement permit
+                       requests via the Request-Review pattern.
+
+   VET Officer View    Work Queue ordered by KLD relevance score
+                       (Red / Amber / Green badges). Approve or reject
+                       movement permit requests.
+
+   Analytics (KLD)     View the top ten highest-scoring events,
+                       per-feature breakdowns, and prior vector P.
+
+   Admin View          Inspect raw database tables and reset the
+                       system between demonstration sessions.
+
+
+API ENDPOINTS
+
+   POST /inbox/vet                  Submit notification to VET inbox
+   POST /inbox/farmer/{id}          Submit notification to farmer inbox
+   GET  /inbox/vet                  List all VET notifications (LDP Container)
+   GET  /inbox/farmer/{id}          List farmer notifications
+   GET  /notifications/{uuid}       Dereference a single notification (AS2 JSON-LD)
+   GET  /analytics/top-events?k=5   Top-k events by KLD relevance score
+
+
+COAR NOTIFY PATTERNS IMPLEMENTED
+
+   Announce + IngestAction          Animal registration
+   Request + ReviewAction           Movement permit request
+   TentativeAccept                  Auto-acknowledgement on receipt
+   TentativeAccept or Reject        VET permit decision
+   Offer                            Ownership transfer proposal
+   Accept                           Receiving farmer accepts transfer
+   Reject                           Receiving farmer declines transfer
+
+
+KLD RELEVANCE RANKING
+
+Each notification is scored using the Kullback-Leibler Divergence
+D_KL(Q_e || P) over six Boolean features extracted from the
+AS2 JSON-LD payload:
+
+   b1   Origin district is HIGH risk            Prior: 0.20
+   b2   Livestock type is cattle                Prior: 0.55
+   b3   Active disease alert in origin district  Prior: 0.10
+   b4   Cross-district movement                 Prior: 0.30
+   b5   High-risk purpose (slaughter/auction)   Prior: 0.20
+   b6   New record (registration or Offer)      Prior: 0.40
+
+Badge thresholds:
+   Red     KLD > 0.30    High priority
+   Amber   KLD 0.15-0.30 Medium priority
+   Green   KLD < 0.15    Low priority
+
+
+RESETTING THE DATABASE
+
+Option 1 — Delete and rebuild:
+
+   docker compose down
+   del baits_coar\data\baits_system.db
+   docker compose up --build
+
+Option 2 — Use the cleanup script:
+
+   docker compose cp cleanup_db.py ldn_inbox:/app/cleanup_db.py
+   docker compose exec ldn_inbox python /app/cleanup_db.py
+
+Option 3 — Use the Admin View in the dashboard (no terminal required).
+
+
+CRISIS SCENARIO
+
+The prototype simulates an active Foot-and-Mouth Disease (FMD) alert
+in the North-East District running from
+1 June 2026 to 31 December 2026. Any livestock movement originating
+from an FMD-quarantined district automatically receives an elevated
+KLD score, surfacing it at the top of the VET work queue.
+
+District risk register (baseline):
+
+   North-East    HIGH
+   North-West    LOW
+   Central       MEDIUM
+   Southern      MEDIUM
+   South-East    LOW
+
+
+OPEN SCIENCE ALIGNMENT
+
+BAITS is explicitly aligned with the UNESCO-CODATA Data Policy for
+Times of Crisis (DPTC) framework across seven principles:
+
+   Transparency         KLD formula fully documented; feature
+                        breakdown visible in the Analytics view.
+
+   Accessibility        Standard LDN HTTP endpoints; no proprietary
+                        tools required.
+
+   Interoperability     AS2 JSON-LD with W3C and COAR Notify contexts.
+
+   Accountability       Immutable events ledger; full workflow state
+                        preserved per notification.
+
+   Real-Time            KLD computed at receipt; Work Queue ordered
+   Responsiveness       by score on every page load.
+
+   Collaboration        Multi-actor notification graph; farmer-to-
+                        farmer Offer pattern; VET CC field.
+
+   FAIR Data            URN:UUID identifiers; rich provenance
+                        metadata; dereferenceable notification URIs.
+
+
+LICENCE
+
+This project is released under the Apache License 2.0.
+See the LICENSE file for full terms.
+
+
+REFERENCES
+
+COAR Notify Protocol 1.0.1
+   https://coar-notify.net/specification/1.0.0/
+
+W3C Linked Data Notifications
+   https://www.w3.org/TR/ldn/
+
+Activity Streams 2.0
+   https://www.w3.org/TR/activitystreams-core/
+
+UNESCO Recommendation on Open Science (2021)
+   https://unesdoc.unesco.org/ark:/48223/pf0000379949
+
+UNESCO-CODATA Data Policy for Times of Crisis
+   https://codata.org/initiatives/data-policy/dptc/
+
+
+CONTACT
+
+Thapelo Tsaone Swaabow
+swaabow@gmail.com
+=========================================================
